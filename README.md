@@ -20,10 +20,11 @@ npm run build    # פלט ב-dist/
 ```
 המצלמה דורשת HTTPS (או localhost).
 
-## התקנה בטלפון
-ה-workflow ב-`.github/workflows/deploy.yml` מפרסם ל-GitHub Pages בכל push ל-`main`
-(צריך להפעיל פעם אחת: Settings → Pages → Source: GitHub Actions).
-פותחים את הכתובת בטלפון ← "הוסף למסך הבית".
+## התקנה בטלפון (אנדרואיד)
+האפליקציה נארזת כ-APK פרטי (Capacitor) – בלי אתר פומבי, והכול כולל מודל הזיהוי נמצא בתוך האפליקציה.
+כל push בונה APK חדש ב-GitHub Actions (`.github/workflows/android.yml`):
+Actions → הריצה האחרונה → Artifacts → `front-lever-apk` → לחלץ את ה-zip ולהתקין את `front-lever.apk`.
+כל הגרסאות חתומות באותו מפתח, כך שעדכון מותקן מעל הקודם וההיסטוריה נשמרת.
 
 ## מבנה
 - `src/analysis.ts` – גיאומטריה: זוויות, סיווג וריאציה, ציון.

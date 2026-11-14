@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Front Lever</string>
+    <string name="title_activity_main">Front Lever</string>
+    <string name="package_name">com.yaniv.frontlever</string>
+    <string name="custom_url_scheme">com.yaniv.frontlever</string>
+</resources>

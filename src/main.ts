@@ -24,4 +24,5 @@ app.querySelector('.tabs')!.addEventListener('click', e => {
   if (tab === 'history') renderHistory();
 });
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register('./sw.js');
+// The installed Android app serves everything from the device, so it needs no service worker.
+if ('serviceWorker' in navigator && import.meta.env.PROD && !('Capacitor' in window)) navigator.serviceWorker.register('./sw.js');

@@ -1,6 +1,6 @@
 import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
 
-const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task';
+const MODEL = new URL('./models/pose_landmarker_full.task', document.baseURI).href;
 
 let cached: Promise<PoseLandmarker> | null = null;
 
