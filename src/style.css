@@ -30,6 +30,12 @@ p { margin: 8px 0; line-height: 1.45; }
 .stage { position: relative; background: #000; width: 100%; aspect-ratio: var(--ar, 3 / 4); max-height: 62dvh; margin: 0 auto; overflow: hidden; flex-shrink: 0; }
 .stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .stage canvas { pointer-events: none; }
+/* While a source is running the picture takes the whole screen; controls shrink to a strip below it. */
+.running .stage { flex: 1 0 55dvh; aspect-ratio: auto; max-height: none; }
+.running .controls { padding: 6px 8px; gap: 6px; flex-direction: row; flex-wrap: wrap; }
+.running .controls > .seg, .running .controls > select { flex: 1 1 0; min-width: 0; width: auto; }
+.running .controls > .row { flex: 1 0 100%; }
+.running .controls button, .running .controls select { min-height: 40px; padding: 6px 8px; font-size: .9rem; }
 .stage.mirror video, .stage.mirror canvas { transform: scaleX(-1); }
 .hud { position: absolute; top: 10px; inset-inline: 10px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
 .hud[hidden], .cue[hidden], .status[hidden], .intro[hidden], .last-set[hidden] { display: none; }
