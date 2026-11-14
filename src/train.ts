@@ -11,7 +11,7 @@ export function initTrain(root: HTMLElement) {
   const prefs = loadPrefs();
   root.innerHTML = `
     <div class="stage">
-      <video playsinline muted></video>
+      <video playsinline muted autoplay></video>
       <canvas></canvas>
       <div class="hud" hidden>
         <div class="timer" dir="ltr">0.0</div>
@@ -56,6 +56,7 @@ export function initTrain(root: HTMLElement) {
   let source: 'camera' | 'file' | null = null;
   let tracker: Tracker = prefs.mode === 'hold' ? new HoldTracker() : new NegativeTracker();
   let raf = 0, lastVT = -1, prevSide: 'L' | 'R' | undefined, smooth: FrameMetrics | null = null;
+  let session = 0;
   let lastBeepSec = 0, lastCueAt = 0, audio: AudioContext | null = null, wake: { release(): Promise<void> } | null = null;
 
   const syncControls = () => {
@@ -64,6 +65,7 @@ export function initTrain(root: HTMLElement) {
     soundBtn.textContent = prefs.sound ? 'צליל: פועל' : 'צליל: כבוי';
     root.querySelector<HTMLElement>('[data-act=flip]')!.hidden = source !== 'camera';
     root.querySelector<HTMLElement>('[data-act=stop]')!.hidden = source === null;
+    root.classList.toggle('running', source !== null);
   };
   syncControls();
 
@@ -100,8 +102,15 @@ export function initTrain(root: HTMLElement) {
     lastEl.querySelector('[data-del]')!.addEventListener('click', () => { deleteSet(rec.id); lastEl.hidden = true; });
   }
 
-  function draw(lm: Pt[] | null, color: string) {
+  // The canvas is the viewfinder: the camera frame is painted onto it, so what you see is exactly
+  // what is analysed, even where the WebView fails to composite the <video> element itself.
+  function paintFrame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (source === 'camera') ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  }
+
+  function draw(lm: Pt[] | null, color: string) {
+    paintFrame();
     if (!lm) return;
     const u = Math.max(2, canvas.width / 220);
     const side = prevSide === 'R' ? 12 : 11;
@@ -127,9 +136,10 @@ export function initTrain(root: HTMLElement) {
 
   function loop() {
     raf = requestAnimationFrame(loop);
-    if (!pose || video.readyState < 2 || video.currentTime === lastVT) return;
+    if (video.readyState < 2 || !video.videoWidth || video.currentTime === lastVT) return;
     lastVT = video.currentTime;
-    if (canvas.width !== video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; stage.style.setProperty('--ar', `${video.videoWidth} / ${video.videoHeight}`); }
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; }
+    if (!pose) { paintFrame(); return; } // model still loading – show the live picture meanwhile
     const res = pose.detectForVideo(video, performance.now());
     const raw = res.landmarks[0];
     const t = now();
@@ -178,6 +188,7 @@ export function initTrain(root: HTMLElement) {
     audio ??= new AudioContext();
     statusEl.hidden = false; statusEl.textContent = 'טוען מודל זיהוי תנועה…';
     intro.hidden = true;
+    const my = ++session;
     try {
       stopSource();
       if (kind === 'camera') {
@@ -189,13 +200,17 @@ export function initTrain(root: HTMLElement) {
         stage.classList.remove('mirror');
       }
       source = kind;
-      pose = await loadPose();
-      await video.play();
-      statusEl.hidden = true; hud.hidden = false;
-      try { wake = await (navigator as Navigator & { wakeLock?: { request(t: string): Promise<{ release(): Promise<void> }> } }).wakeLock?.request('screen') ?? null; } catch { /* optional */ }
+      syncControls();
+      // Show the picture right away so the phone can be aimed while the model loads.
       tracker.reset(); lastVT = -1;
       cancelAnimationFrame(raf); loop();
+      await video.play();
+      pose = await loadPose();
+      if (my !== session) return;
+      statusEl.hidden = true; hud.hidden = false;
+      try { wake = await (navigator as Navigator & { wakeLock?: { request(t: string): Promise<{ release(): Promise<void> }> } }).wakeLock?.request('screen') ?? null; } catch { /* optional */ }
     } catch (e) {
+      if (my !== session) return;
       stopSource();
       intro.hidden = false; statusEl.hidden = true;
       errEl.hidden = false;
@@ -228,7 +243,7 @@ export function initTrain(root: HTMLElement) {
     else if (act === 'file') fileInput.click();
     else if (act === 'flip') { prefs.facing = prefs.facing === 'user' ? 'environment' : 'user'; savePrefs(prefs); begin('camera'); }
     else if (act === 'sound') { prefs.sound = !prefs.sound; savePrefs(prefs); syncControls(); }
-    else if (act === 'stop') { stopSource(); intro.hidden = false; statusEl.hidden = true; syncControls(); }
+    else if (act === 'stop') { session++; stopSource(); intro.hidden = false; statusEl.hidden = true; syncControls(); }
     const mode = t.closest<HTMLElement>('[data-ctl=mode] button')?.dataset.v as 'hold' | 'negative' | undefined;
     if (mode && mode !== prefs.mode) {
       handle(tracker.flush());
