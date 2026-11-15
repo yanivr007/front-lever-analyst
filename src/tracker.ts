@@ -32,6 +32,8 @@ export const QUALITY_SCORE = 70;
 export const ZONE_DEG = 20;
 const ENTER_DEG = 22, STAY_DEG = 32, ENTER_S = 0.4, EXIT_S = 0.5, MIN_HOLD_S = 1;
 const SAMPLE_DT = 0.1;
+/** Landing detection: feet dropping this far (deg) below the recent hold position ends the set. */
+const LAND_DEG = 8, LAND_BACKDATE_DEG = 3, LAND_WIN_FROM = 2.5, LAND_WIN_TO = 0.4;
 
 export type TrackEvent = { type: 'start' } | { type: 'end'; samples: Sample[] } | null;
 
@@ -51,21 +53,35 @@ export interface Tracker {
   reset(): void;
 }
 
+const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
+
 export class HoldTracker implements Tracker {
   active = false;
   private candSince: number | null = null;
   private start = 0;
   private lastGood = 0;
   private lastT = -1;
+  private broken = false;
   private samples: Sample[] = [];
   private pending: Sample[] = [];
+  /** Shoulder→ankle angle per frame during the hold, for landing detection. */
+  private legs: { t: number; a: number }[] = [];
+  /** After a landing: feet angle on the floor. No new hold until the feet lift back up (or the pose is left). */
+  private landedAt: number | null = null;
 
-  reset() { this.active = false; this.candSince = null; this.samples = []; this.pending = []; this.lastT = -1; }
-  elapsed(t: number) { return this.active ? Math.max(0, t - this.start) : 0; }
+  reset() { this.active = false; this.candSince = null; this.samples = []; this.pending = []; this.legs = []; this.broken = false; this.landedAt = null; this.lastT = -1; }
+  /** Freezes as soon as the form breaks, so the clock doesn't keep running while we confirm the exit. */
+  elapsed(t: number) { return this.active ? Math.max(0, (this.broken ? this.lastGood : t) - this.start) : 0; }
 
   private push(list: Sample[], t: number, m: Core) {
     const last = list[list.length - 1];
     if (!last || t - last.t >= SAMPLE_DT) list.push(toSample(t, m));
+  }
+
+  /** Feet position during the last couple of seconds, excluding the most recent moment. */
+  private legBaseline(t: number): number | null {
+    const w = this.legs.filter(l => l.t >= t - LAND_WIN_FROM && l.t <= t - LAND_WIN_TO).map(l => l.a);
+    return w.length >= 3 ? median(w) : null;
   }
 
   update(t: number, m: FrameMetrics | null): TrackEvent {
@@ -73,19 +89,45 @@ export class HoldTracker implements Tracker {
     this.lastT = t;
     const ok = (lim: number, conf: number) => !!m && m.confidence >= conf && m.hanging && Math.abs(m.torso) < lim;
     if (!this.active) {
+      if (this.landedAt !== null) {
+        if (!m || !ok(ENTER_DEG, 0.4) || m.legAngle < this.landedAt - LAND_DEG * 0.6) this.landedAt = null;
+        else return null;
+      }
       if (ok(ENTER_DEG, 0.5)) {
-        if (this.candSince === null) { this.candSince = t; this.pending = []; }
+        if (this.candSince === null) { this.candSince = t; this.pending = []; this.legs = []; }
         this.push(this.pending, t, m!);
+        this.legs.push({ t, a: m!.legAngle });
         if (t - this.candSince >= ENTER_S) {
-          this.active = true; this.start = this.candSince; this.lastGood = t;
+          this.active = true; this.start = this.candSince; this.lastGood = t; this.broken = false;
           this.samples = this.pending; this.pending = []; this.candSince = null;
           return { type: 'start' };
         }
       } else this.candSince = null;
       return null;
     }
-    if (ok(STAY_DEG, 0.4)) { this.lastGood = t; this.push(this.samples, t, m!); return null; }
-    if (t - this.lastGood >= EXIT_S) return this.flush();
+    if (ok(STAY_DEG, 0.4)) {
+      const base = this.legBaseline(t);
+      if (base === null || m!.legAngle - base < LAND_DEG) {
+        this.lastGood = t; this.broken = false;
+        this.legs.push({ t, a: m!.legAngle });
+        this.push(this.samples, t, m!);
+        return null;
+      }
+      // Feet dropped quickly (e.g. landed on the floor): end the hold where the drop began.
+      if (!this.broken) {
+        let i = this.legs.length - 1;
+        while (i > 0 && this.legs[i].a - base > LAND_BACKDATE_DEG && this.legs[i].t > this.start) i--;
+        this.lastGood = Math.max(this.start, this.legs[i]?.t ?? this.lastGood);
+      }
+    }
+    // Still in lever shape but the feet are down: remember where, so we don't start a new hold right away.
+    const feetDown = ok(STAY_DEG, 0.4) ? m!.legAngle : null;
+    this.broken = true;
+    if (t - this.lastGood >= EXIT_S) {
+      const ev = this.flush();
+      this.landedAt = feetDown;
+      return ev;
+    }
     return null;
   }
 
@@ -143,7 +185,6 @@ export class NegativeTracker implements Tracker {
 }
 
 const mean = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
-const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
 
 function majorityVariation(samples: Core[]): Variation {
   const c = new Map<Variation, number>();

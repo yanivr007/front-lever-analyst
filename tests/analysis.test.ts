@@ -111,6 +111,27 @@ describe('HoldTracker', () => {
     expect(events).toEqual(['start']);
     expect(tr.elapsed(5)).toBeCloseTo(5, 1);
   });
+  it('stops as soon as the feet land, even if the body stays near horizontal (low bars)', () => {
+    // 5 s lever, then within 0.3 s the feet drop to the floor: torso sags to 12°, hips open 12°.
+    const land = (t: number) => Math.min(1, (t - 5) / 0.3);
+    const frames = [
+      ...seq(0, 5, () => skeleton({ torso: 2 })),
+      ...seq(5, 9, t => skeleton({ torso: 2 + 10 * land(t), hip: -12 * land(t) })),
+    ];
+    const tr = new HoldTracker();
+    const { events, samples } = run(tr, frames);
+    expect(events).toEqual(['start', 'end']);
+    const rec = summarize('hold', samples, null)!;
+    expect(rec.duration).toBeGreaterThan(4.8);
+    expect(rec.duration).toBeLessThan(5.15);
+    // lifting the feet back up into a lever starts a new hold
+    expect(run(tr, seq(9, 11, () => skeleton({ torso: 2 }))).events).toEqual(['start']);
+  });
+  it('a slow sag or small wobble does not end the hold', () => {
+    const frames = seq(0, 10, t => skeleton({ torso: 2 + t * 1.5, hip: t > 4 && t < 4.3 ? -6 : 0 }));
+    const tr = new HoldTracker();
+    expect(run(tr, frames).events).toEqual(['start']);
+  });
   it('does not start for someone lying down (hands not above shoulders)', () => {
     const lying = skeleton().map((p, i) => (i === 15 || i === 16 ? { ...p, y: 320 } : p));
     expect(run(new HoldTracker(), seq(0, 3, () => lying)).events).toEqual([]);

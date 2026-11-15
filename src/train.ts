@@ -149,8 +149,8 @@ export function initTrain(root: HTMLElement) {
       const cur = computeMetrics(lm, prevSide);
       prevSide = cur.side;
       // light smoothing against landmark jitter
-      const a = 0.5, mix = (k: 'torso' | 'hipDev' | 'kneeBend' | 'kneeBendOther' | 'elbowBend') => (smooth ? smooth[k] + a * (cur[k] - smooth[k]) : cur[k]);
-      m = smooth = { ...cur, torso: mix('torso'), hipDev: mix('hipDev'), kneeBend: mix('kneeBend'), kneeBendOther: mix('kneeBendOther'), elbowBend: mix('elbowBend') };
+      const a = 0.5, mix = (k: 'torso' | 'legAngle' | 'hipDev' | 'kneeBend' | 'kneeBendOther' | 'elbowBend') => (smooth ? smooth[k] + a * (cur[k] - smooth[k]) : cur[k]);
+      m = smooth = { ...cur, torso: mix('torso'), legAngle: mix('legAngle'), hipDev: mix('hipDev'), kneeBend: mix('kneeBend'), kneeBendOther: mix('kneeBendOther'), elbowBend: mix('elbowBend') };
     } else smooth = null;
 
     handle(tracker.update(t, m));

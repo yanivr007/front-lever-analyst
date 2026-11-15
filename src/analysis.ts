@@ -18,6 +18,8 @@ export interface FrameMetrics {
   elbowBend: number;
   /** Wrists clearly above shoulders (i.e. hanging from something). */
   hanging: boolean;
+  /** Shoulder→ankle line vs horizontal, degrees (same sign as torso). Rises when the feet drop, e.g. landing. */
+  legAngle: number;
   /** Mean landmark visibility of the chosen side, 0..1. */
   confidence: number;
   side: 'L' | 'R';
@@ -74,6 +76,7 @@ export function computeMetrics(lm: Pt[], prevSide?: 'L' | 'R'): FrameMetrics {
     kneeBend: 180 - angleAt(hip, knee, ank),
     kneeBendOther: 180 - angleAt(lm[o.hip], lm[o.knee], lm[o.ank]),
     elbowBend: 180 - angleAt(sh, el, wr),
+    legAngle: deg(Math.atan2(ank.y - sh.y, Math.abs(ank.x - sh.x))),
     hanging: sh.y - wr.y > 0.2 * torsoLen,
     confidence: side === 'L' ? vL : vR,
     side,
