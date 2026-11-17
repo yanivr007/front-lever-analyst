@@ -20,7 +20,13 @@ npm run build    # פלט ב-dist/
 ```
 המצלמה דורשת HTTPS (או localhost).
 
-## התקנה בטלפון (אנדרואיד)
+## פתיחה בטלפון כאתר (מומלץ)
+כל push ל-main מפרסם את הגרסה האחרונה ב-GitHub Pages (`.github/workflows/pages.yml`):
+https://yanivr007.github.io/front-lever-analyst/
+
+פותחים את הכתובת ב-Chrome, ובתפריט ⋮ בוחרים "הוספה למסך הבית". האפליקציה מתעדכנת לבד, ואין צורך להתקין APK מחדש.
+
+## התקנה בטלפון כ-APK (אנדרואיד)
 האפליקציה נארזת כ-APK פרטי (Capacitor) – בלי אתר פומבי, והכול כולל מודל הזיהוי נמצא בתוך האפליקציה.
 כל push בונה APK חדש ב-GitHub Actions (`.github/workflows/android.yml`):
 Actions → הריצה האחרונה → Artifacts → `front-lever-apk` → לחלץ את ה-zip ולהתקין את `front-lever.apk`.
