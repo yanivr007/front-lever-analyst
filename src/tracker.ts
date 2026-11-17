@@ -31,6 +31,8 @@ export interface SetRecord {
 export const QUALITY_SCORE = 70;
 export const ZONE_DEG = 20;
 const ENTER_DEG = 22, STAY_DEG = 32, ENTER_S = 0.4, EXIT_S = 0.5, MIN_HOLD_S = 1;
+/** How long the body may be lost from view (no reliable landmarks) before a hold counts as over. */
+const LOST_S = 1.5;
 const SAMPLE_DT = 0.1;
 
 export type TrackEvent = { type: 'start' } | { type: 'end'; samples: Sample[] } | null;
@@ -43,6 +45,8 @@ const toSample = (t: number, m: Core): Sample => ({
 
 export interface Tracker {
   readonly active: boolean;
+  /** About to start a set (in position, waiting for confirmation) – used to start recording early. */
+  readonly arming: boolean;
   /** Seconds since the current set started (0 when idle). */
   elapsed(t: number): number;
   update(t: number, m: FrameMetrics | null): TrackEvent;
@@ -62,6 +66,7 @@ export class HoldTracker implements Tracker {
 
   reset() { this.active = false; this.candSince = null; this.samples = []; this.pending = []; this.lastT = -1; }
   elapsed(t: number) { return this.active ? Math.max(0, t - this.start) : 0; }
+  get arming() { return this.candSince !== null; }
 
   private push(list: Sample[], t: number, m: Core) {
     const last = list[list.length - 1];
@@ -69,7 +74,10 @@ export class HoldTracker implements Tracker {
   }
 
   update(t: number, m: FrameMetrics | null): TrackEvent {
-    if (this.lastT >= 0 && (t < this.lastT || t - this.lastT > 2)) this.reset();
+    if (this.lastT >= 0 && t < this.lastT) this.reset();               // video seeked back
+    else if (this.lastT >= 0 && t - this.lastT > 2) {                  // frames stalled: keep what we have
+      const ev = this.flush(); this.lastT = t; return ev;
+    }
     this.lastT = t;
     const ok = (lim: number, conf: number) => !!m && m.confidence >= conf && m.hanging && Math.abs(m.torso) < lim;
     if (!this.active) {
@@ -85,7 +93,9 @@ export class HoldTracker implements Tracker {
       return null;
     }
     if (ok(STAY_DEG, 0.4)) { this.lastGood = t; this.push(this.samples, t, m!); return null; }
-    if (t - this.lastGood >= EXIT_S) return this.flush();
+    // Clearly out of shape → end quickly. Body merely not detected (jitter, occlusion) → give it longer.
+    const seen = !!m && m.confidence >= 0.4;
+    if (t - this.lastGood >= (seen ? EXIT_S : LOST_S)) return this.flush();
     return null;
   }
 
@@ -109,6 +119,7 @@ export class NegativeTracker implements Tracker {
 
   reset() { this.active = false; this.armed = false; this.samples = []; this.lastT = -1; }
   elapsed(t: number) { return this.active ? Math.max(0, t - this.start) : 0; }
+  get arming() { return this.armed; }
 
   update(t: number, m: FrameMetrics | null): TrackEvent {
     if (this.lastT >= 0 && (t < this.lastT || t - this.lastT > 2)) this.reset();

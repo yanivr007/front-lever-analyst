@@ -111,6 +111,25 @@ describe('HoldTracker', () => {
     expect(events).toEqual(['start']);
     expect(tr.elapsed(5)).toBeCloseTo(5, 1);
   });
+  it('keeps the hold through a 1 s loss of detection, but ends quickly when out of shape', () => {
+    const lost = run(new HoldTracker(), seq(0, 6, t => (t > 3 && t < 4 ? null : skeleton())));
+    expect(lost.events).toEqual(['start']);
+    const dropped = run(new HoldTracker(), [...seq(0, 3, () => skeleton()), ...seq(3, 4, () => skeleton({ torso: 60 }))]);
+    expect(dropped.events).toEqual(['start', 'end']);
+    expect(summarize('hold', dropped.samples, null)!.duration).toBeGreaterThan(2.8);
+  });
+  it('saves the hold (instead of discarding it) when frames stall', () => {
+    const tr = new HoldTracker();
+    const { events, samples } = run(tr, [...seq(0, 4, () => skeleton()), [7, skeleton()]]);
+    expect(events).toEqual(['start', 'end']);
+    expect(summarize('hold', samples, null)!.duration).toBeGreaterThan(3.8);
+  });
+  it('reports when it is about to start', () => {
+    const tr = new HoldTracker();
+    tr.update(0, computeMetrics(skeleton()));
+    expect(tr.arming).toBe(true);
+    expect(tr.active).toBe(false);
+  });
   it('does not start for someone lying down (hands not above shoulders)', () => {
     const lying = skeleton().map((p, i) => (i === 15 || i === 16 ? { ...p, y: 320 } : p));
     expect(run(new HoldTracker(), seq(0, 3, () => lying)).events).toEqual([]);

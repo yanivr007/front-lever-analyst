@@ -38,15 +38,22 @@ p { margin: 8px 0; line-height: 1.45; }
 .running .controls button, .running .controls select { min-height: 40px; padding: 6px 8px; font-size: .9rem; }
 .stage.mirror video, .stage.mirror canvas { transform: scaleX(-1); }
 .hud { position: absolute; top: 10px; inset-inline: 10px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
-.hud[hidden], .cue[hidden], .status[hidden], .intro[hidden], .last-set[hidden] { display: none; }
+.hud[hidden], .cue[hidden], .status[hidden], .result[hidden], .intro[hidden], .last-set[hidden] { display: none; }
 .timer { font-size: 3.4rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; padding: 6px 12px; border-radius: 12px; background: rgba(0,0,0,.55); color: var(--muted); }
 .hud.active .timer { color: var(--accent); }
+.hud.reached .timer { color: var(--bg); background: var(--accent); }
+.hud.done .timer { color: var(--text); outline: 2px solid var(--accent); }
+.timer .goal { font-size: 1.1rem; font-weight: 600; margin-inline-start: 6px; opacity: .8; }
+.timer .goal:empty { display: none; }
 .live { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
 .live span { background: rgba(0,0,0,.55); border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
 .score-pill { font-size: 1.4rem !important; font-weight: 700; font-variant-numeric: tabular-nums; }
-.cue, .status { position: absolute; bottom: 12px; inset-inline: 12px; text-align: center; padding: 10px; border-radius: 12px; font-weight: 700; pointer-events: none; }
+.cue, .status, .result { position: absolute; bottom: 12px; inset-inline: 12px; text-align: center; padding: 10px; border-radius: 12px; font-weight: 700; pointer-events: none; }
 .cue { background: var(--mid); color: #2b1d00; font-size: 1.1rem; }
 .status { background: rgba(0,0,0,.7); font-weight: 500; }
+.result.ok { background: var(--accent); color: #06250f; font-size: 1.05rem; }
+.result.skip { background: rgba(0,0,0,.75); color: var(--mid); }
+.clip video { width: 100%; max-height: 60dvh; border-radius: 10px; background: #000; display: block; }
 .intro { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 24px; background: var(--bg); text-align: center; }
 .controls, .last-set, .page { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .row { display: flex; gap: 8px; } .row > * { flex: 1; }
@@ -54,7 +61,7 @@ p { margin: 8px 0; line-height: 1.45; }
 .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .seg button { flex: 1; border: 0; border-radius: 0; background: var(--surface); color: var(--muted); }
 .seg button.on { background: var(--text); color: var(--bg); font-weight: 700; }
-.last-set { background: var(--surface); margin: 0 12px 12px; border-radius: 14px; border: 1px solid var(--line); }
+.last-set { background: var(--surface); margin: 12px 12px 0; border-radius: 14px; border: 1px solid var(--line); }
 .last-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .last-head button { min-height: 36px; padding: 4px 12px; }
 

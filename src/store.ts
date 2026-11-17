@@ -22,9 +22,13 @@ export function importJson(text: string): number {
   return fresh.length;
 }
 
-export interface Prefs { mode: 'hold' | 'negative'; variation: string; sound: boolean; facing: 'environment' | 'user' }
+export interface Prefs {
+  mode: 'hold' | 'negative'; variation: string; sound: boolean; facing: 'environment' | 'user';
+  /** Hold target in seconds (0 = none): beeps when reached. */
+  target: number;
+}
 export function loadPrefs(): Prefs {
-  const d: Prefs = { mode: 'hold', variation: 'auto', sound: true, facing: 'environment' };
+  const d: Prefs = { mode: 'hold', variation: 'auto', sound: true, facing: 'environment', target: 0 };
   try { return { ...d, ...JSON.parse(localStorage.getItem(PREFS) ?? '{}') }; } catch { return d; }
 }
 export function savePrefs(p: Prefs) { localStorage.setItem(PREFS, JSON.stringify(p)); }
