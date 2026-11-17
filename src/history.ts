@@ -3,6 +3,7 @@ import { ZONE_DEG, type FailureKey, type Mode, type SetRecord } from './tracker'
 import { deleteSet, exportJson, importJson, loadSets } from './store';
 import { FAILURE_HINT, FAILURE_LABEL, fmtDate, fmtTime, VAR_LABEL } from './labels';
 import { lineChart } from './charts';
+import { deleteClip, fixDuration, getClip } from './clips';
 
 let root: HTMLElement;
 let mode: Mode = 'hold';
@@ -101,6 +102,7 @@ function openDetail(s: SetRecord) {
   const neg = s.mode === 'negative';
   const dlg = document.createElement('dialog');
   dlg.className = 'detail';
+  const clip = getClip(s.id);
   const part = (label: string, v: number | null) => (v === null ? '' : `<div class="bar-row"><span>${label}</span><div class="bar"><i style="width:${v * 100}%"></i></div><b>${Math.round(v * 100)}</b></div>`);
   dlg.innerHTML = `
     <div class="last-head"><b>${neg ? 'נגטיב' : 'החזקה'} · ${VAR_LABEL[s.variation]}${s.auto ? '' : ' (ידני)'}</b><button data-close>סגור</button></div>
@@ -110,6 +112,7 @@ function openDetail(s: SetRecord) {
       <div><span>${Math.round(s.score)}</span><small>ציון</small></div>
       <div><span>${fmtTime(s.qualityTime)}</span><small>${neg ? `באזור ±${ZONE_DEG}°` : 'זמן איכותי'}</small></div>
     </div>
+    ${clip ? `<div class="clip"><video controls playsinline muted loop src="${clip}"></video><p class="muted">הסרטון זמין רק עד שסוגרים את האפליקציה.</p></div>` : ''}
     <h3>פירוק הציון</h3>
     ${neg ? '' : part('אופקיות', s.parts.horizontal)}${part('קו אגן', s.parts.hips)}${part('מרפקים', s.parts.elbows)}${part('ברכיים', s.parts.knees)}
     ${neg ? '' : `<p class="muted">יציבות: סטייה של ±${s.stability.toFixed(1)}° בזווית הגוף</p>`}
@@ -120,6 +123,7 @@ function openDetail(s: SetRecord) {
     <p class="muted">0° = אופקי. זווית גוף חיובית = מתחת לאופק. אגן חיובי = מקופל, שלילי = מקושת.</p>
     <button class="danger" data-del>מחק סט</button>`;
   document.body.append(dlg);
+  const vid = dlg.querySelector('video'); if (vid) fixDuration(vid);
   lineChart(dlg.querySelector('#ch-detail')!, [
     { name: 'זווית גוף', color: C1, points: s.samples.map(p => ({ x: p.t, y: p.torso })) },
     ...(s.variation === 'tuck' || s.variation === 'advTuck' ? [] : [{ name: 'אגן', color: C2, points: s.samples.map(p => ({ x: p.t, y: p.hipDev })) }]),
@@ -127,7 +131,7 @@ function openDetail(s: SetRecord) {
   dlg.addEventListener('click', e => {
     const t = e.target as HTMLElement;
     if (t.closest('[data-close]')) dlg.close();
-    if (t.closest('[data-del]') && confirm('למחוק את הסט?')) { deleteSet(s.id); dlg.close(); renderHistory(); }
+    if (t.closest('[data-del]') && confirm('למחוק את הסט?')) { deleteSet(s.id); deleteClip(s.id); dlg.close(); renderHistory(); }
   });
   dlg.addEventListener('close', () => dlg.remove());
   dlg.showModal();
